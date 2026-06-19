@@ -83,11 +83,11 @@
 <body>
 
 <div id="controls">
-  <button id="f-all" class="active">All (74)</button>
-  <button id="f-strategy">Strategy (9)</button>
-  <button id="f-research">Research (32)</button>
-  <button id="f-outputs">Outputs (19)</button>
-  <button id="f-people">People (14)</button>
+  <button id="f-all" class="active">All</button>
+  <button id="f-strategy">Strategy</button>
+  <button id="f-research">Research</button>
+  <button id="f-outputs">Outputs</button>
+  <button id="f-people">People</button>
 </div>
 
 <div id="legend">
@@ -99,7 +99,7 @@
   Shared theme (inferred)<span class="line-key" style="border-color:#666;"></span>
 </div>
 
-<div id="caption">Drag any node. Yellow lines are real co-authorships (named pairs on funded projects). Gray lines are inferred shared themes (equity / sustainability / resilience), matched from project titles against the network's own framework — not scraped metadata.</div>
+<div id="caption">Drag any node. People includes both the 14 management team members and named co-authors on funded projects. Yellow lines are real co-authorships (named pairs on funded projects). Gray lines are inferred shared themes (equity / sustainability / resilience), matched from project titles against the network's own framework — not scraped metadata.</div>
 
 <svg id="map"></svg>
 <div id="tooltip"></div>
@@ -190,6 +190,21 @@ const namedCoAuthors = new Set();
 research.forEach(r => r.people.forEach(n => namedCoAuthors.add(n)));
 const extraPeople = Array.from(namedCoAuthors).filter(n => !people.includes(n));
 extraPeople.forEach((label,i) => nodes.push({id:'ep'+i, label, cat:'people'}));
+
+// Compute real counts per category and label the filter buttons accordingly —
+// these counts are derived from the actual node list, so they can't go stale.
+const counts = {
+  strategy: nodes.filter(n => n.cat === 'strategy').length,
+  research: nodes.filter(n => n.cat === 'research').length,
+  outputs: nodes.filter(n => n.cat === 'outputs').length,
+  people: nodes.filter(n => n.cat === 'people').length,
+};
+counts.all = counts.strategy + counts.research + counts.outputs + counts.people;
+document.getElementById('f-all').textContent = 'All (' + counts.all + ')';
+document.getElementById('f-strategy').textContent = 'Strategy (' + counts.strategy + ')';
+document.getElementById('f-research').textContent = 'Research (' + counts.research + ')';
+document.getElementById('f-outputs').textContent = 'Outputs (' + counts.outputs + ')';
+document.getElementById('f-people').textContent = 'People (' + counts.people + ')';
 
 function findPersonNode(name) {
   let idx = people.indexOf(name);
