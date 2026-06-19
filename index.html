@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Digital Good Network — corpus map</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    overflow: hidden;
+    height: 100%;
+  }
+  #controls {
+    position: fixed;
+    top: 16px; left: 16px;
+    display: flex; gap: 8px; z-index: 10;
+    flex-wrap: wrap; max-width: 90%;
+  }
+  button {
+    background: #111;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.active {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+  }
+  #legend {
+    position: fixed;
+    top: 16px; right: 16px;
+    font-size: 12px;
+    color: #999;
+    text-align: right;
+    line-height: 1.7;
+    z-index: 10;
+  }
+  .dot-key {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .line-key {
+    display: inline-block;
+    width: 18px; height: 0;
+    border-top: 1.5px solid;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  #tooltip {
+    position: fixed;
+    display: none;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    max-width: 280px;
+    pointer-events: none;
+    z-index: 20;
+    color: #eee;
+  }
+  #tooltip .cat { color: #888; font-size: 11px; margin-top: 2px; }
+  #caption {
+    position: fixed;
+    bottom: 16px; left: 16px;
+    font-size: 12px;
+    color: #666;
+    max-width: 460px;
+    z-index: 10;
+  }
+  svg { display: block; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="f-all" class="active">All (74)</button>
+  <button id="f-strategy">Strategy (9)</button>
+  <button id="f-research">Research (32)</button>
+  <button id="f-outputs">Outputs (19)</button>
+  <button id="f-people">People (14)</button>
+</div>
+
+<div id="legend">
+  Strategy<span class="dot-key" style="background:#E24B4A;"></span><br>
+  Research project<span class="dot-key" style="background:#fff;"></span><br>
+  Output / document<span class="dot-key" style="background:#378ADD;"></span><br>
+  Person<span class="dot-key" style="background:#F2C200;"></span><br>
+  <span style="margin-top:6px; display:inline-block;">Co-authorship<span class="line-key" style="border-color:#F2C200;"></span></span><br>
+  Shared theme (inferred)<span class="line-key" style="border-color:#666;"></span>
+</div>
+
+<div id="caption">Drag any node. Yellow lines are real co-authorships (named pairs on funded projects). Gray lines are inferred shared themes (equity / sustainability / resilience), matched from project titles against the network's own framework — not scraped metadata.</div>
+
+<svg id="map"></svg>
+<div id="tooltip"></div>
+
+<script>
+const strategy = [
+  "What we do", "Our vision", "How we work", "Management team",
+  "Researchers", "College of Experts", "Digital Good Research Fund", "Opportunities",
+];
+
+const research = [
+  {label:"Digital governance for urban admin, Global South", people:["Fenna Imara Hoefsloot","Ayona Datta"], themes:["equity"]},
+  {label:"Digital death in a good digital society", people:["Eva Nieto McAvoy"], themes:[]},
+  {label:"Children's critical engagement with technology", people:["Dylan Yamada-Rice","John Potter"], themes:["equity"]},
+  {label:"Sustainable use of generative AI in schools", people:["Miles Berry","Arif Mahmud"], themes:["sustainability"]},
+  {label:"Digital spaces for trafficking survivors", people:["Sohail Jannesari","Sharli Paphitis"], themes:["equity","resilience"]},
+  {label:"Rest, calm and downtime", people:["Tina Kendall"], themes:["resilience"]},
+  {label:"Connected families", people:["Murray Goulden","Jenny van Hooff"], themes:["resilience"]},
+  {label:"Digital platforms for autistic people", people:["Nelya Koteyko","Belén Barros Pena"], themes:["equity"]},
+  {label:"A good city AI ecosystem: Manchester", people:["Richard Whittle","Sherelle Fairweather"], themes:["resilience"]},
+  {label:"Inclusive and safe virtual reality", people:["Oliver Merry","Kate Whitfield"], themes:["equity"]},
+  {label:"Digital tools for migrant food sharing", people:["Sara Marino"], themes:["equity"]},
+  {label:"Digital infrastructures of cooperative care", people:["Genevieve Shanahan"], themes:["resilience"]},
+  {label:"Digital-first museums and heritage", people:["Daniel McNeil"], themes:["equity"]},
+  {label:"Just and ethical film-making with Gen-AI", people:["Sylvia Hayes","Emilie Vrain"], themes:[]},
+  {label:"Anti-ableist data and algorithmic systems", people:["Denis Newman-Griffis","Bonnielin Swenor"], themes:["equity"]},
+  {label:"Digitising identity: migrant experiences", people:[], themes:["equity"]},
+  {label:"Making harm visible: domestic homicide reviews", people:[], themes:["equity"]},
+  {label:"Queer AI for the Ally", people:[], themes:["equity"]},
+  {label:"Co-designing energy communities, Colombia", people:[], themes:["sustainability"]},
+  {label:"Accessible digital musical instruments", people:[], themes:["equity"]},
+  {label:"Setting the standard: AI in mental health", people:[], themes:["resilience"]},
+  {label:"Digital resilience through community-led AI, Wales", people:[], themes:["equity","resilience"]},
+  {label:"Digital health in low-resource settings, Africa", people:[], themes:[]},
+  {label:"Generative AI messaging apps", people:[], themes:[]},
+  {label:"Queer joy as a digital good", people:[], themes:["equity"]},
+  {label:"What does a good digital welfare state look like?", people:[], themes:["resilience"]},
+  {label:"Less damage done: defence tech", people:[], themes:["resilience"]},
+  {label:"The politics of funding the digital good", people:[], themes:[]},
+  {label:"Public voices in AI", people:[], themes:[]},
+  {label:"Enhancing crisis readiness, Global South", people:[], themes:["equity","resilience"]},
+  {label:"Glocks, animal emojis & rulay: cartel recruitment", people:[], themes:[]},
+  {label:"Preferred digital community futures", people:[], themes:[]},
+  {label:"What do we talk about when we talk about AI?", people:[], themes:[]},
+  {label:"Tangled mess or constructive tension knot?", people:[], themes:[]},
+  {label:"Black-owned hair businesses and digital platforms", people:[], themes:["equity"]},
+  {label:"DataTesting: public data infrastructures", people:[], themes:[]},
+  {label:"DigiAdGood: digital advertising metrics", people:[], themes:[]},
+  {label:"Speculative woolgathering: anticipatory evaluation", people:[], themes:[]},
+  {label:"What are they thinking? Meta-perspectives online", people:[], themes:[]},
+  {label:"Sustainable computing education with teachers", people:[], themes:["sustainability"]},
+  {label:"Can digital goods be neutral? OpenStreetMap equity", people:[], themes:["equity"]},
+  {label:"Evaluating civic technologies for political engagement", people:[], themes:[]},
+  {label:"Towards a sustainable internet of things (IoT)", people:[], themes:["sustainability"]},
+  {label:"Menstrual tracking app users in India", people:[], themes:["equity"]},
+  {label:"Digital well-being and disconnection practices", people:[], themes:["resilience"]},
+  {label:"Children's attitudes to digital good, hybrid arts", people:[], themes:[]},
+  {label:"Good digital identity futures", people:[], themes:["equity"]},
+  {label:"Participatory and inclusive data stewardship", people:[], themes:["equity"]},
+  {label:"Re-imagining AI with Afrofuturist speculative design", people:[], themes:[]},
+];
+
+const outputs = [
+  "Exclusion by design", "Living well with data", "Crowd power: digital crowdfunding",
+  "Public voices in AI: outputs", "Sustainable computing education guide",
+  "Resources for including the public in AI", "Critical tech resources for 9-13 year olds",
+  "Metaphors for good digital identities", "Talk AI webtoon", "Queer joy pride keynote",
+  "Evaluating societal outcomes of digital tech", "Queer joy on social media",
+  "Children's digital good/bad through hybrid arts", "Digital healthcare animation",
+  "Digital welfare IDs: policy briefing", "Indigenous artificial co-creation",
+  "The good in digital good: keynote session", "Digital good from the Global South",
+  "Indigenia manifesto",
+];
+
+const people = [
+  "Helen Kennedy", "Gina Neff", "Ros Williams", "Scott Hale",
+  "Abigail Millings", "Jonathan Corpus Ong", "Reema Patel", "Dan Richards",
+  "Rhianne Jones", "Sara Wajid", "Rachel Carey", "Ruth Lauener",
+  "Dee Goddard", "Emma Doyle",
+];
+
+const nodes = [];
+strategy.forEach((label,i) => nodes.push({id:'s'+i, label, cat:'strategy'}));
+research.forEach((r,i) => nodes.push({id:'r'+i, label:r.label, cat:'research', themes:r.themes}));
+outputs.forEach((label,i) => nodes.push({id:'o'+i, label, cat:'outputs'}));
+people.forEach((label,i) => nodes.push({id:'p'+i, label, cat:'people'}));
+const namedCoAuthors = new Set();
+research.forEach(r => r.people.forEach(n => namedCoAuthors.add(n)));
+const extraPeople = Array.from(namedCoAuthors).filter(n => !people.includes(n));
+extraPeople.forEach((label,i) => nodes.push({id:'ep'+i, label, cat:'people'}));
+
+function findPersonNode(name) {
+  let idx = people.indexOf(name);
+  if (idx >= 0) return 'p'+idx;
+  idx = extraPeople.indexOf(name);
+  if (idx >= 0) return 'ep'+idx;
+  return null;
+}
+
+const links = [];
+strategy.forEach((_,i) => links.push({source:'s'+i, target:'anchor-strategy', type:'structural'}));
+research.forEach((_,i) => links.push({source:'r'+i, target:'anchor-research', type:'structural'}));
+outputs.forEach((_,i) => links.push({source:'o'+i, target:'anchor-outputs', type:'structural'}));
+people.forEach((_,i) => links.push({source:'p'+i, target:'anchor-people', type:'structural'}));
+nodes.push({id:'anchor-strategy', cat:'anchor', x0:0.3,y0:0.25});
+nodes.push({id:'anchor-research', cat:'anchor', x0:0.6,y0:0.5});
+nodes.push({id:'anchor-outputs', cat:'anchor', x0:0.4,y0:0.75});
+nodes.push({id:'anchor-people', cat:'anchor', x0:0.7,y0:0.25});
+
+research.forEach((r,i) => {
+  const projId = 'r'+i;
+  const personIds = r.people.map(findPersonNode).filter(Boolean);
+  personIds.forEach(pid => links.push({source:projId, target:pid, type:'coauthor'}));
+  for (let a=0; a<personIds.length; a++) {
+    for (let b=a+1; b<personIds.length; b++) {
+      links.push({source:personIds[a], target:personIds[b], type:'coauthor'});
+    }
+  }
+});
+
+for (let i=0; i<research.length; i++) {
+  for (let j=i+1; j<research.length; j++) {
+    const shared = research[i].themes.filter(t => research[j].themes.includes(t));
+    if (shared.length > 0) {
+      links.push({source:'r'+i, target:'r'+j, type:'theme'});
+    }
+  }
+}
+
+const colors = {
+  strategy: '#E24B4A',
+  research: '#ffffff',
+  outputs: '#378ADD',
+  people: '#F2C200',
+};
+const linkColors = {
+  structural: '#1c1c1c',
+  coauthor: '#F2C200',
+  theme: '#444444',
+};
+const linkWidths = {
+  structural: 0.4,
+  coauthor: 1,
+  theme: 0.6,
+};
+
+let W = window.innerWidth, H = window.innerHeight;
+const svg = document.getElementById('map');
+svg.setAttribute('width', W);
+svg.setAttribute('height', H);
+const ns = 'http://www.w3.org/2000/svg';
+
+nodes.forEach(n => {
+  if (n.cat === 'anchor') {
+    n.x = W * n.x0; n.y = H * n.y0;
+  } else {
+    n.x = W/2 + (Math.random()-0.5)*W*0.7;
+    n.y = H/2 + (Math.random()-0.5)*H*0.7;
+  }
+  n.vx = 0; n.vy = 0;
+});
+
+const tooltip = document.getElementById('tooltip');
+let activeFilter = 'all';
+
+function visible(n) {
+  if (n.cat === 'anchor') return true;
+  if (activeFilter === 'all') return true;
+  return n.cat === activeFilter;
+}
+
+function render() {
+  svg.innerHTML = '';
+  const linkLayer = document.createElementNS(ns, 'g');
+  const nodeLayer = document.createElementNS(ns, 'g');
+  svg.appendChild(linkLayer);
+  svg.appendChild(nodeLayer);
+
+  links.forEach(l => {
+    const s = nodes.find(n => n.id === l.source);
+    const t = nodes.find(n => n.id === l.target);
+    if (!s || !t || !visible(s) || !visible(t)) return;
+    if (l.type === 'structural') return;
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', s.x); line.setAttribute('y1', s.y);
+    line.setAttribute('x2', t.x); line.setAttribute('y2', t.y);
+    line.setAttribute('stroke', linkColors[l.type]);
+    line.setAttribute('stroke-width', linkWidths[l.type]);
+    if (l.type === 'theme') line.setAttribute('opacity', '0.5');
+    linkLayer.appendChild(line);
+  });
+
+  nodes.forEach(n => {
+    if (n.cat === 'anchor') return;
+    if (!visible(n)) return;
+    const r = 6;
+    const g = document.createElementNS(ns, 'g');
+    g.style.cursor = 'grab';
+    const circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx', n.x); circle.setAttribute('cy', n.y); circle.setAttribute('r', r);
+    circle.setAttribute('fill', colors[n.cat]);
+    g.appendChild(circle);
+
+    g.addEventListener('mouseenter', (e) => {
+      tooltip.style.display = 'block';
+      const catNames = {strategy:'Strategy', research:'Research project', outputs:'Output / document', people:'Person'};
+      let extra = '';
+      if (n.cat === 'research' && n.themes && n.themes.length) {
+        extra = '<div class="cat">Theme: ' + n.themes.join(', ') + ' (inferred)</div>';
+      }
+      tooltip.innerHTML = '<div>'+n.label+'</div><div class="cat">'+(catNames[n.cat]||'')+'</div>'+extra;
+      tooltip.style.left = Math.min(e.clientX + 14, W - 300) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    g.addEventListener('mousemove', (e) => {
+      tooltip.style.left = Math.min(e.clientX + 14, W - 300) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    g.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    let dragging = false;
+    g.addEventListener('mousedown', () => {
+      dragging = true; g.style.cursor = 'grabbing';
+      const move = (ev) => {
+        if (!dragging) return;
+        n.x = ev.clientX; n.y = ev.clientY;
+        render();
+      };
+      const up = () => {
+        dragging = false; g.style.cursor = 'grab';
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+
+    nodeLayer.appendChild(g);
+  });
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  ['all','strategy','research','outputs','people'].forEach(k => {
+    document.getElementById('f-'+k).classList.toggle('active', k===f);
+  });
+  render();
+}
+document.getElementById('f-all').addEventListener('click', () => setFilter('all'));
+document.getElementById('f-strategy').addEventListener('click', () => setFilter('strategy'));
+document.getElementById('f-research').addEventListener('click', () => setFilter('research'));
+document.getElementById('f-outputs').addEventListener('click', () => setFilter('outputs'));
+document.getElementById('f-people').addEventListener('click', () => setFilter('people'));
+
+function tick() {
+  nodes.forEach(a => {
+    if (a.cat === 'anchor') return;
+    let fx = 0, fy = 0;
+    nodes.forEach(b => {
+      if (a === b || b.cat === 'anchor') return;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const repel = 700 / (dist*dist);
+      fx += dx/dist*repel; fy += dy/dist*repel;
+    });
+    links.forEach(l => {
+      let other = null, strength = 0.01, restLen = 200;
+      if (l.source === a.id) other = nodes.find(n => n.id === l.target);
+      if (l.target === a.id) other = nodes.find(n => n.id === l.source);
+      if (!other) return;
+      if (l.type === 'structural') { strength = 0.004; restLen = 260; }
+      if (l.type === 'coauthor') { strength = 0.03; restLen = 70; }
+      if (l.type === 'theme') { strength = 0.012; restLen = 120; }
+      const dx = other.x - a.x, dy = other.y - a.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const attract = (dist - restLen) * strength;
+      fx += dx/dist*attract; fy += dy/dist*attract;
+    });
+    fx += (W/2 - a.x) * 0.0004;
+    fy += (H/2 - a.y) * 0.0004;
+    a.vx = (a.vx + fx) * 0.75;
+    a.vy = (a.vy + fy) * 0.75;
+    a.x += a.vx; a.y += a.vy;
+    a.x = Math.max(10, Math.min(W-10, a.x));
+    a.y = Math.max(10, Math.min(H-10, a.y));
+  });
+  render();
+}
+
+window.addEventListener('resize', () => {
+  W = window.innerWidth; H = window.innerHeight;
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+});
+
+setFilter('all');
+let ticks = 0;
+const interval = setInterval(() => {
+  tick(); ticks++;
+  if (ticks > 260) clearInterval(interval);
+}, 40);
+</script>
+</body>
+</html>
